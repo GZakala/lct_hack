@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16.3
+    container_name: hack_postgres
+    environment:
+      POSTGRES_DB: "hack"
+      POSTGRES_USER: "default"
+      POSTGRES_PASSWORD: "12345"
+    ports:
+      - "5432:5432"
+    volumes:
+      - hack_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  hack_postgres_data:
