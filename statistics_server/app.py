@@ -15,7 +15,7 @@ stats_calculator = StatsCalculator()
 
 @app.route('/select_balances_accaunt_101', methods=['GET'])
 def select_balances_accaunt_101():
-	data = request.get_json()
+	data = json.loads(request.get_data())
 	limit = data.get('limit', 10)
 	result = stats_calculator.select_balances_accaunt_101(limit=limit)
 	return Response(
