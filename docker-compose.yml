@@ -36,7 +36,7 @@ services:
     image: telegram_bot:latest
     container_name: hack_telegram_bot
     ports:
-      - 50551:50551
+      - 5001:5001
     networks:
       - hack
     depends_on:
@@ -50,7 +50,7 @@ services:
     image: statistics_server:latest
     container_name: hack_statistics_server
     ports:
-      - 50550:50550
+      - 5000:5000
     networks:
       - hack
     depends_on:

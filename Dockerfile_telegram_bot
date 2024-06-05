@@ -13,6 +13,6 @@ WORKDIR /app
 
 COPY ./telegram_bot ./src
 
-EXPOSE 50551
+EXPOSE 5001
 
 CMD ["/bin/bash", "-c", "python3 ./src/main.py"]
