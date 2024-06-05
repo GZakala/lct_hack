@@ -10,6 +10,49 @@ services:
       - "5432:5432"
     volumes:
       - hack_postgres_data:/var/lib/postgresql/data
+    networks:
+      - hack
+
+  superset:
+    image: apache/superset:24b8ffd-ci
+    container_name: hack_superset
+    restart: always
+    ports:
+      - 8088:8088
+    environment:
+      - SUPERSET_SECRET_KEY=302010
+    volumes:
+      - superset_pythonpath:/app/pythonpath
+      - superset_home:/app/superset_home
+    networks:
+      - hack
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile_telegram_bot
+    image: telegram_bot:latest
+    container_name: hack_telegram_bot
+    ports:
+      - 50551:50551
+    networks:
+      - hack
+  
+  statistics_server:
+    build:
+      context: .
+      dockerfile: Dockerfile_statistics_server
+    image: statistics_server:latest
+    container_name: hack_statistics_server
+    ports:
+      - 50550:50550
+    networks:
+      - hack
 
 volumes:
   hack_postgres_data:
+  superset_pythonpath:
+  superset_home:
+
+networks:
+  hack:
