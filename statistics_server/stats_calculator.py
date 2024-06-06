@@ -6,6 +6,7 @@ from typing import Dict
 from jinja2 import Environment, FileSystemLoader, Template
 
 from psql_client import PSQLClient
+from opensearch_client import OpensearchClient
 
 
 CUR_DIR = Path(__file__).parent
@@ -22,6 +23,13 @@ class StatsCalculator:
 			password='12345',
 			dbname='hack',
 		)
+		self.opensearch_client = OpensearchClient(
+			host='hack_opensearch',
+			port=9200,
+			user='admin',
+			password='admin',
+			sql_client=self.sql_client,
+		)
 
 	def get_templates(self) -> Dict[str, Template]:
 		template_files = os.listdir(CUR_DIR / 'templates')
@@ -35,3 +43,6 @@ class StatsCalculator:
 			limit=limit,
 		)
 		return self.sql_client.select(sql)
+
+	def search_kpgz(self, text: str, k: int = 5):
+		return self.opensearch_client.search_kpgz(text, k)

@@ -2,3 +2,4 @@ data
 research
 .venv
 .gitignore
+*__pycache__

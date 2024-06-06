@@ -21,7 +21,7 @@ class PSQLClient:
 			dbname=dbname,
 		)
 
-	def select_df(self, sql: str, columns: Sequence[str] = None) -> pd.DataFrame:
+	def select_df(self, sql: str) -> pd.DataFrame:
 		cursor = self.client.cursor()
 		try:
 			cursor.execute(sql)
@@ -31,12 +31,12 @@ class PSQLClient:
 			return
 
 		rows = [row for row in cursor]
-		cursor.close()
-		if columns:
-			return pd.DataFrame(rows, columns=columns)
-		return pd.DataFrame(rows)
+		columns = [col.name for col in cursor.description]
 
-	def select(self, sql) -> List[Any]:
+		cursor.close()
+		return pd.DataFrame(rows, columns=columns)
+
+	def select(self, sql: str) -> List[Any]:
 		cursor = self.client.cursor()
 		try:
 			cursor.execute(sql)
@@ -45,7 +45,11 @@ class PSQLClient:
 			print(str(e))
 			return
 
-		rows = [[str(field) for field in row] for row in cursor]
+		columns = [col.name for col in cursor.description]
+		rows = [
+			{col: str(val) for col, val in zip(columns, row)}
+			for row in cursor
+		]
+
 		cursor.close()
 		return rows
-

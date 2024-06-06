@@ -24,5 +24,17 @@ def select_balances_accaunt_101():
 		content_type='application/json',
 	)
 
+@app.route('/search_kpgz', methods=['GET'])
+def search_kpgz():
+	data = json.loads(request.get_data())
+	text = data.get('text', '')
+	k = data.get('k', 5)
+	result = stats_calculator.search_kpgz(text, k)
+	return Response(
+		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
 if __name__ == '__main__':
 	app.run(host='0.0.0.0', port=5000, debug=True)
