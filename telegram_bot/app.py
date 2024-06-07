@@ -12,11 +12,11 @@ def send_welcome(message: telebot.types.Message):
 	bot.reply_to(
 		message, 
 		f"""
-		Привет, я бот для помощи в закупках.
-		Я умею анализировать историю закупок и делать прогнозы.
-		Вот полный список моих умений:
-		/search_ste [text] - найти СТЕ по тексту
-		/search_kpgz [text] - найти КПГЗ и СПГЗ по тексту
+Привет, я бот для помощи в закупках.
+Я умею анализировать историю закупок и делать прогнозы.
+Вот полный список моих умений:
+/search_ste [text] - найти СТЕ по тексту
+/search_kpgz [text] - найти КПГЗ и СПГЗ по тексту
 		""",
 	)
 
@@ -33,8 +33,8 @@ def search_ste(message: telebot.types.Message):
 		return bot.reply_to(message, 'Я не нашел КПГЗ по вашему запросу')
 	for row in rows:
 		response_text += f"""
-		СТЕ: {row.get('ste_name', '')}
-		Характеристика СТЕ: {row.get('ste_name', '')}
+СТЕ: {row.get('ste_name', '')}
+Характеристика СТЕ: {row.get('ste_name', '')}
 		"""
 		if row['kpgz_code'] != '':
 			response_text += f"КПГЗ: {row['kpgz_code']} - {row['kpgz_name']}\n"
