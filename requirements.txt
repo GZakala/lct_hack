@@ -23,6 +23,7 @@ jupyter_client==8.6.2
 jupyter_core==5.7.2
 MarkupSafe==2.1.5
 matplotlib-inline==0.1.7
+ndjson==0.3.1
 nest-asyncio==1.6.0
 numpy==1.26.4
 opensearch-py==2.6.0
@@ -44,7 +45,6 @@ pyzmq==26.0.3
 requests==2.32.3
 six==1.16.0
 snowballstemmer==2.2.0
-Sphinx==7.3.7
 sphinxapi-py3==2.1.11
 sphinxcontrib-applehelp==1.0.8
 sphinxcontrib-devhelp==1.0.6

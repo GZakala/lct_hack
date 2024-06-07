@@ -44,5 +44,8 @@ class StatsCalculator:
 		)
 		return self.sql_client.select(sql)
 
+	def search_ste(self, text: str, k: int = 5):
+		return self.opensearch_client.search_ste(text, k)
+
 	def search_kpgz(self, text: str, k: int = 5):
 		return self.opensearch_client.search_kpgz(text, k)

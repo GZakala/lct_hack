@@ -24,6 +24,18 @@ def select_balances_accaunt_101():
 		content_type='application/json',
 	)
 
+@app.route('/search_ste', methods=['GET'])
+def search_ste():
+	data = json.loads(request.get_data())
+	text = data.get('text', '')
+	k = data.get('k', 5)
+	result = stats_calculator.search_ste(text, k)
+	return Response(
+		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
 @app.route('/search_kpgz', methods=['GET'])
 def search_kpgz():
 	data = json.loads(request.get_data())
