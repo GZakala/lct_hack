@@ -61,7 +61,7 @@ services:
       - postgres
       - superset
     env_file:
-      - .env_keycloak
+      - .keycloak.env
   
   statistics_server:
     build:

@@ -20,40 +20,40 @@ keycloak_openid = KeycloakOpenID(
 	server_url=cfg.keycloak_server_url,
     client_id=cfg.keycloak_client_id,
     realm_name=cfg.keycloak_realm_name,
-    client_secret_key=cfg.keycloak_client_secret_key,
+    client_secret_key=cfg.keycloak_client_secret,
 )
 
 
-@app.route('/callback')
-def callback():
-	global access_token
-	authorization_code = request.args.get('code')
-	if not authorization_code:
-		return "Authorization code not provided", 400
+# @app.route('/callback')
+# def callback():
+# 	global access_token
+# 	authorization_code = request.args.get('code')
+# 	if not authorization_code:
+# 		return "Authorization code not provided", 400
 
-	token_response = keycloak_openid.token(authorization_code, cfg.keycloak_redirect_url)
-	access_token = token_response['access_token']
-	refresh_token = token_response['refresh_token']
+# 	token_response = keycloak_openid.token(authorization_code, cfg.keycloak_redirect_url)
+# 	access_token = token_response['access_token']
+# 	refresh_token = token_response['refresh_token']
 	
-	return f"Access Token: {access_token}<br>Refresh Token: {refresh_token}"
+# 	return f"Access Token: {access_token}<br>Refresh Token: {refresh_token}"
 
-def requires_auth(func):
-    @wraps(func)
-    def wrapper(message, *args, **kwargs):
-        global access_token
-        if not access_token:
-            bot.reply_to(message, "�?�? �?�? ���?�?�?���?���?�?. �?�?�?��?�?�?�?�?�, ��?��?�?�?��?�? ���?�?�?����?��? �?�?�?�?� /start")
-            return
-        return func(message, *args, **kwargs)
-    return wrapper
+# def requires_auth(func):
+#     @wraps(func)
+#     def wrapper(message, *args, **kwargs):
+#         global access_token
+#         if not access_token:
+#             bot.reply_to(message, "Вы должны сначала авторизоваться!/start")
+#             return
+#         return func(message, *args, **kwargs)
+#     return wrapper
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    auth_url = keycloak_openid.auth_url(redirect_uri=cfg.keycloak_redirect_uri)
-    bot.reply_to(message, f"�?�?�?�?�?���?�? ��? �?�?�?�?��? ��?�? ���?�?�?����?��: {auth_url}")
+# @bot.message_handler(commands=['start'])
+# def start(message):
+#     auth_url = keycloak_openid.auth_url(redirect_uri=cfg.keycloak_redirect_uri)
+#     bot.reply_to(message, f"Перейдите для авторизации: {auth_url}")
 
 @bot.message_handler(commands=['info'])
-@requires_auth
+# @requires_auth
 def send_welcome(message: telebot.types.Message):
 	bot.reply_to(
 		message, 
@@ -67,7 +67,7 @@ def send_welcome(message: telebot.types.Message):
 	)
 
 @bot.message_handler(commands=['search_ste'])
-@requires_auth
+# @requires_auth
 def search_ste(message: telebot.types.Message):
 	response = requests.get(
 		url='http://hack_statistics_server:5000/search_ste', 
@@ -91,7 +91,7 @@ def search_ste(message: telebot.types.Message):
 	bot.reply_to(message, response_text)
 
 @bot.message_handler(commands=['search_kpgz'])
-@requires_auth
+# @requires_auth
 def search_kpgz(message: telebot.types.Message):
 	response = requests.get(
 		url='http://hack_statistics_server:5000/search_kpgz', 

@@ -89,3 +89,66 @@ select
 	count(distinct coalesce(contract_id, '')||coalesce(lot_number, 0)||coalesce(spgz_code, '')||coalesce(kpgz_code, ''))
 from procurement_contracts t;
 --2995	2995	2995
+
+
+create table procurement_contracts_new
+as
+select 
+	contract_id,
+	lot_number,
+	coalesce(contract_status, 'Неизвестно') as contract_status,
+	version_number,
+	contract_price,
+	initial_contract_price,
+	paid_amount,
+	paid_percentage,
+	fulfilled_by_supplier_price,
+	case 
+		when contract_basis = '' or contract_basis is null then 'Неизвестно'
+		else contract_basis 
+	end as contract_basis,
+	case 
+		when contract_subject = '' or contract_subject is null then 'Неизвестно'
+		else contract_subject 
+	end as contract_subject,
+	case 
+		when ikz = '' or ikz is null then 'Неизвестно'
+		else ikz 
+	end as ikz,
+	case 
+		when supplier_selection_method = '' or supplier_selection_method is null then 'Неизвестно'
+		else supplier_selection_method 
+	end as supplier_selection_method,
+	case 
+		when customer = '' or customer is null then 'Неизвестно'
+		else customer 
+	end as customer,
+	contract_date,
+	registration_date,
+	last_modified_date,
+	execution_start_date,
+	execution_end_date,
+	contract_expiry_date,
+	spgz_code,
+	spgz_name,
+	kpgz_code,
+	kpgz_name,
+	msp,
+	case 
+		when supplier_region = '' or supplier_region is null then 'Неизвестно'
+		else supplier_region 
+	end as supplier_region,
+	fz,
+	electronic_execution
+from procurement_contracts;
+
+drop table procurement_contracts;
+alter table procurement_contracts_new rename to procurement_contracts;
+
+alter table procurement_contracts add column kpgz_code_name text;
+update procurement_contracts 
+set kpgz_code_name = kpgz_code||' '||kpgz_name;
+
+alter table procurement_contracts add column spgz_code_name text;
+update procurement_contracts 
+set spgz_code_name = spgz_code||' '||spgz_name;

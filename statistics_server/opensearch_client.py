@@ -106,10 +106,10 @@ class OpensearchClient:
 
 		sql = """
 		select 	
-			coalesce(kpgz_code, '') as kpgz_code,
-			coalesce(kpgz_name, '') as kpgz_name,
-			coalesce(spgz_code::text, '') as spgz_code,
-			coalesce(spgz_name, '') as spgz_name
+			kpgz_code as kpgz_code,
+			kpgz_name as kpgz_name,
+			spgz_code as spgz_code,
+			spgz_name as spgz_name
 		from kpgz_spgz
 		"""
 
@@ -129,6 +129,68 @@ class OpensearchClient:
 
 			self.client.bulk(
 				index='kpgz', 
+				body=ndjson.dumps(bulk_body, ensure_ascii=False)
+			)
+
+	def create_contracts_index(self, drop: bool = False):
+		if self.client.indices.exists(index='contracts'):
+			if not drop:
+				return
+			self.client.indices.delete(index='contracts')
+
+		self.client.indices.create(index='contracts', body={
+			"settings": {
+				"number_of_shards": 1,
+				"number_of_replicas": 1
+			},
+			"mappings": {
+				"dynamic": False,
+				"properties": {
+				"contract_id": { "type": "keyword" },
+				"contract_date": { "type": "date" },
+				"lot_number": { "type": "keyword" },
+				"spgz_code": { "type": "keyword" },
+				"spgz_name": { "type": "text" },
+				"kpgz_code": { "type": "keyword" },
+				"kpgz_name": { "type": "text" },
+				"contract_subject": { "type": "text" },
+				}
+			}
+		})
+
+		sql = """
+		select 
+			coalesce(contract_id, '') as contract_id, 
+			contract_date as contract_date, 
+			lot_number, 
+			coalesce(spgz_code, '') as spgz_code, 
+			coalesce(spgz_name, '') as spgz_name, 
+			coalesce(kpgz_code, '') as kpgz_code, 
+			coalesce(kpgz_name, '') as kpgz_name, 
+			coalesce(contract_subject, '') as contract_subject
+		from procurement_contracts;
+		"""
+
+		rows = self.sql_client.select(sql)
+		batch_size = 10000
+		action = {'create': {'_index': 'contracts'}}
+		for batch in batched(rows, batch_size):
+			bulk_body = []
+			for row in batch:
+				bulk_body.append(action)
+				bulk_body.append({
+					"contract_id": row.get('contract_id', ''),
+					"contract_date": str(row.get('contract_date', '')),
+					"lot_number": row.get('lot_number', ''),
+					"spgz_code": row.get('spgz_code', ''),
+					"spgz_name": row.get('spgz_name', ''),
+					"kpgz_code": row.get('kpgz_code', ''),
+					"kpgz_name": row.get('kpgz_name', ''),
+					"contract_subject": row.get('contract_subject', ''),
+				})
+
+			self.client.bulk(
+				index='contracts', 
 				body=ndjson.dumps(bulk_body, ensure_ascii=False)
 			)
 
@@ -164,5 +226,37 @@ class OpensearchClient:
 					}
 				}
 			}
+		)
+		return [hit['_source'] for hit in response['hits']['hits']]
+
+	def search_contracts(self, text: str, k: int = 5):
+		response = self.client.search(
+			index='contracts',
+			body={
+				'size': k,
+				'query': {
+					'multi_match': {
+						'query': text,
+						'fields': ['spgz_name^4', 'contract_subject']
+					}
+				}
+				# 'filter': { 
+				# 	'bool': {
+				# 		'filter': [
+				# 			{ 
+				# 				'range': { 
+				# 					'contact_date': {
+				# 						'gte': '2018-01-01', 
+				# 						'lt': '2020-01-01',
+				# 					}
+				# 				}
+				# 			}
+				# 		],
+				# 		'must': [
+				# 			{ 'match': { 'spgz_name': text} },
+				# 		],
+				# 	},
+				# },
+			},
 		)
 		return [hit['_source'] for hit in response['hits']['hits']]
