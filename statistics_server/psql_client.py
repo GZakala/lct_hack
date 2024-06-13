@@ -28,7 +28,10 @@ class PSQLClient:
 		except Exception as e:
 			print(f'Error while executing method select_df: {sql}')
 			print(str(e))
-			return
+			return {
+				'error': f'Error while executing method select_df: {sql}',
+				'python_error': str(e),
+		   	}
 
 		rows = [row for row in cursor]
 		columns = [col.name for col in cursor.description]
@@ -41,9 +44,12 @@ class PSQLClient:
 		try:
 			cursor.execute(sql)
 		except Exception as e:
-			print(f'Error while executing method select_df: {sql}')
+			print(f'Error while executing method select: {sql}')
 			print(str(e))
-			return
+			return {
+				'error': f'Error while executing method select: {sql}',
+				'python_error': str(e),
+		   	}
 
 		columns = [col.name for col in cursor.description]
 		rows = [

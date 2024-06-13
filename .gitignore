@@ -3,3 +3,4 @@ research
 .venv
 *__pycache__
 .*.env
+
