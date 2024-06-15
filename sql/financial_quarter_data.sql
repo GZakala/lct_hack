@@ -36,3 +36,18 @@ select 	spgz_name,
 	from financial_all_data
 	group by spgz_name, report_date
 	order by spgz_name, start_report_date_quarter;
+
+create table financial_quarter_data_new
+as
+select t.*, tt.is_regular as is_regular_spgz
+	from financial_quarter_data t
+	left join 
+	(
+select spgz_name, sum((turnovers_debit_quantity > 0 or turnovers_debit_price > 0)::int) >= 2 as is_regular
+	from financial_quarter_data
+	group by spgz_name
+	) tt
+	on t.spgz_name = tt.spgz_name;
+
+drop table financial_quarter_data;
+alter table financial_quarter_data_new rename to financial_quarter_data;

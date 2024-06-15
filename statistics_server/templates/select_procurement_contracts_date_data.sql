@@ -23,7 +23,7 @@ select
 from contracts_raw_delta
 )
 select 	
-	'{spgz_name}' as spgz_name,
+	'{{ spgz_name }}' as spgz_name,
 	t.date as contract_date,
 	coalesce(contracts_price, 0) as contracts_price,
 	coalesce(tt.delta, 0) as delta,

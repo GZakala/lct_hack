@@ -106,6 +106,25 @@ def prognoze_financial_quarter():
 		content_type='application/json',
 	)
 
+@app.route('/grafic_dynamics_financial', methods=['GET'])
+def grafic_dynamics_financial():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'quarter')
+	img_buf = stats_calculator.create_grafic_dynamics_financial(spgz_name, date_grain)
+	return Response(
+		response=json.dumps({'img': img_buf}, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
 @app.route('/prognoze_contracts', methods=['GET'])
 def prognoze_contracts():
 	data = json.loads(request.get_data())
@@ -121,6 +140,111 @@ def prognoze_contracts():
 	result = stats_calculator.prognoze_contracts(spgz_name, date_grain)
 	return Response(
 		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
+@app.route('/user', methods=['PUT'])
+def add_user():
+	data = json.loads(request.get_data())
+	must_fields = 'username department permission_admin permission_forecast permission_json password'.split()
+	if any(must_field not in data for must_field in must_fields):
+		return Response(
+			response=json.dumps({'error': f'Need fields {must_fields}'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	username = data['username']
+	department = data['department']
+	permission_admin = data['permission_admin']
+	permission_forecast = data['permission_forecast']
+	permission_json = data['permission_json']
+	password = data['password']
+	result = stats_calculator.add_user(
+		username=username,
+		department=department,
+		permission_admin=permission_admin,
+		permission_forecast=permission_forecast,
+		permission_json=permission_json,
+		password=password,
+	)
+
+	if not result:
+		return Response(
+			response=json.dumps({'error': f'Internal error'} , ensure_ascii=False), 
+			status=500,
+			content_type='application/json',
+		)
+
+	return Response(
+		status=200,
+		content_type='application/json',
+	)
+
+@app.route('/user', methods=['GET'])
+def get_user():
+	data = json.loads(request.get_data())
+	if 'username' not in data:
+		return Response(
+			response=json.dumps({'error': f'Need field "username"'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	username = data['username']
+	users = stats_calculator.get_user(username=username)
+	if not users:
+		return Response(
+			response=json.dumps({'result': 'User not found'}, ensure_ascii=False),
+			status=200,
+			content_type='application/json',
+		)
+
+	user = users[0]
+	return Response(
+		response=json.dumps({
+			'username': user.get('username', ''),
+			'department': user.get('department', ''),
+			'permission_admin': user.get('permission_admin', ''),
+			'permission_forecast': user.get('permission_forecast', ''),
+			'permission_json': user.get('permission_json', ''),
+			'password': user.get('password', ''),
+		}, ensure_ascii=False),
+		status=200,
+		content_type='application/json',
+	)
+
+@app.route('/user', methods=['DELETE'])
+def del_user():
+	data = json.loads(request.get_data())
+	if 'username' not in data or 'password' not in data:
+		return Response(
+			response=json.dumps({'error': f'Need field "username"'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	username = data['username']
+	password = data['password']
+
+	users = stats_calculator.get_user(username=username)
+	if not users or users[0].get('password') != password:
+		return Response(
+			response=json.dumps({'error': f'Incorrect password'} , ensure_ascii=False), 
+			status=200,
+			content_type='application/json',
+		)
+
+	result = stats_calculator.del_user(username=username)
+	if not result:
+		return Response(
+			response=json.dumps({'error': f'Internal error'} , ensure_ascii=False), 
+			status=500,
+			content_type='application/json',
+		)
+
+	return Response(
 		status=200,
 		content_type='application/json',
 	)

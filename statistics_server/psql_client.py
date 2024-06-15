@@ -4,7 +4,7 @@ from typing import Any, List
 import psycopg2
 import pandas as pd
 
-from logger import get_logger, log_method
+from logger import get_logger
 
 LOGGER = get_logger(str(Path(__file__).absolute()))
 
@@ -42,6 +42,7 @@ class PSQLClient:
 		rows = [row for row in cursor]
 		columns = [col.name for col in cursor.description]
 
+		self.client.commit()
 		cursor.close()
 		return pd.DataFrame(rows, columns=columns)
 
@@ -63,5 +64,19 @@ class PSQLClient:
 			for row in cursor
 		]
 
+		self.client.commit()
 		cursor.close()
 		return rows
+
+	def execute(self, sql: str):
+		cursor = self.client.cursor()
+		try:
+			cursor.execute(sql)
+		except Exception as e:
+			LOGGER.error(f'Error while executing method select: {sql}')
+			LOGGER.error(str(e))
+			return False
+
+		self.client.commit()
+		cursor.close()
+		return True

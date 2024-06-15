@@ -174,7 +174,9 @@ class OpensearchClient:
 			"mappings": {
 				"dynamic": False,
 				"properties": {
-					"category": { "type": "text" },
+					"ste_name": { "type": "text" },
+					"ste_category": { "type": "text" },
+					"spgz_name": { "type": "text" },
 					"avg_contracts_price": { "type": "float" },
 					"avg_contracts_delta": { "type": "float" },
 					"avg_price_per_day": { "type": "float" },
@@ -185,14 +187,35 @@ class OpensearchClient:
 		})
 
 		sql = """
-		select 	spgz_name as category,
-				round(avg(contracts_price), 2) as avg_contracts_price,
-				ceil(avg(next_contracts_delta)) as avg_contracts_delta,
-				round(avg(contracts_price) / avg(next_contracts_delta), 2) as avg_price_per_day,
-				min(contract_date) as first_contract_date,
-				max(contract_date) as last_contract_date
-			from procurement_contracts_date_data
-			group by spgz_name;
+		with contracts as (
+		select 	
+			spgz_name,
+			unnest(contract_ids) as contract_id,
+			round(avg(contracts_price), 2) as avg_contracts_price,
+			ceil(avg(next_contracts_delta)) as avg_contracts_delta,
+			round(avg(contracts_price) / avg(next_contracts_delta), 2) as avg_price_per_day,
+			min(contract_date) as first_contract_date,
+			max(contract_date) as last_contract_date
+		from procurement_contracts_date_data
+		group by spgz_name, unnest(contract_ids)
+		),
+		ste as (
+		select contract_id, ste_name, category
+			from ste_kpgz
+		)
+		select 
+			coalesce(tt.ste_name, '') as ste_name, 
+			coalesce(tt.category, '') as ste_category, 
+			t.spgz_name,
+			array_agg(t.contract_id),
+			avg(t.avg_contracts_price) as avg_contracts_price,
+			avg(t.avg_contracts_delta) as avg_contracts_delta,
+			avg(t.avg_price_per_day) as avg_price_per_day,
+			min(t.first_contract_date) as first_contract_date,
+			min(t.last_contract_date) as last_contract_date
+		from contracts t
+		left join ste tt on t.contract_id = tt.contract_id
+		group by ste_name, ste_category, spgz_name;
 		"""
 
 		rows = self.sql_client.select(sql)
@@ -203,7 +226,9 @@ class OpensearchClient:
 			for row in batch:
 				bulk_body.append(action)
 				bulk_body.append({
-					"category": row.get('category', ''),
+					"ste_name": row.get('ste_name', ''),
+					"ste_category": row.get('ste_category', ''),
+					"spgz_name": row.get('spgz_name', ''),
 					"avg_contracts_price": row.get('avg_contracts_price', 0),
 					"avg_contracts_delta": row.get('avg_contracts_delta', 0),
 					"avg_price_per_day": row.get('avg_price_per_day', 0),
@@ -222,10 +247,9 @@ class OpensearchClient:
 			body={
 				'size': k,
 				'query': {
-					'match': {
-						'category': {
-							'query': text,
-						}
+					'multi_match': {
+						'query': text,
+						'fields': ['spgz_name^3', 'ste_name', '', 'ste_category']
 					}
 				}
 			},
