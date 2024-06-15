@@ -1,7 +1,12 @@
-from typing import Any, Sequence, List
+from pathlib import Path
+from typing import Any, List
 
 import psycopg2
 import pandas as pd
+
+from logger import get_logger, log_method
+
+LOGGER = get_logger(str(Path(__file__).absolute()))
 
 
 class PSQLClient:
@@ -26,8 +31,9 @@ class PSQLClient:
 		try:
 			cursor.execute(sql)
 		except Exception as e:
-			print(f'Error while executing method select_df: {sql}')
-			print(str(e))
+			LOGGER.error(f'Error while executing method select_df: {sql}')
+			LOGGER.error(str(e))
+			cursor.close()
 			return {
 				'error': f'Error while executing method select_df: {sql}',
 				'python_error': str(e),
@@ -44,8 +50,8 @@ class PSQLClient:
 		try:
 			cursor.execute(sql)
 		except Exception as e:
-			print(f'Error while executing method select: {sql}')
-			print(str(e))
+			LOGGER.error(f'Error while executing method select: {sql}')
+			LOGGER.error(str(e))
 			return {
 				'error': f'Error while executing method select: {sql}',
 				'python_error': str(e),

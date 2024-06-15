@@ -10,7 +10,9 @@ import requests
 import telebot
 from telebot import types
 from io import BytesIO
+import requests
 import emoji
+
 # from flask import Flask, request
 # from keycloak import KeycloakOpenID
 
@@ -97,6 +99,11 @@ def get_contract_data_api(product_name):
         "image": create_image_with_text()
     }
 
+data_header = {
+    "id": None,
+    "lotEntityId": None,
+    "CustomerId": None
+}
 
 current_search = {}
 
@@ -107,13 +114,13 @@ def send_welcome(message):
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     itembtn1 = types.KeyboardButton('Поиск товара 📦')
     itembtn2 = types.KeyboardButton('Просмотр остатков и прогноз 📊')
-    itembtn3 = types.KeyboardButton('Проведение закупки 🛒')
+    itembtn3 = types.KeyboardButton('Проведение закупки и создание JSON 🛒')
     markup.add(itembtn1, itembtn2, itembtn3)
     bot.send_message(message.chat.id, """
 Добро пожаловать! Выберите действие из кнопок ниже, или введите:\n
 - Поиск товара 📦\n
 - Просмотр остатков и прогноз 📊\n
-- Проведение закупки 🛒""", reply_markup=markup)
+- Проведение закупки и создание JSON 🛒""", reply_markup=markup)
 
 
 # Handlers for each option
@@ -133,11 +140,17 @@ def process_search_product(message):
         product_name = text
         
         results = search_product_api(product_name)
+        
         if results:
             current_search[message.chat.id] = results
+            
+            
             markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
             for result in results:
                 markup.add(types.KeyboardButton(result))
+                bot.send_message(message.chat.id, result)
+            
+                  
             markup.add(types.KeyboardButton('Ни один из этих товаров'))
             markup.add(types.KeyboardButton('Назад 🔙'))
             bot.send_message(message.chat.id, "Наиболее релевантные товары:", reply_markup=markup)
@@ -159,7 +172,7 @@ def handle_search_selection(message):
         current_search[message.chat.id] = selected_product
         markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
         markup.add(types.KeyboardButton('Просмотр остатков и прогноз 📊'))
-        markup.add(types.KeyboardButton('Проведение закупки 🛒'))
+        markup.add(types.KeyboardButton('Проведение закупки и создание JSON 🛒'))
         markup.add(types.KeyboardButton('Изменить товар ✏️'))
         markup.add(types.KeyboardButton('Назад 🔙'))
         bot.send_message(message.chat.id, f"Вы выбрали {selected_product}. Что дальше?", reply_markup=markup)
@@ -169,8 +182,8 @@ def handle_post_search_actions(message):
     text = emoji.replace_emoji(message.text.lower(), replace='').strip()
     if text == 'просмотр остатков и прогноз':
         view_stock_and_forecast(message)
-    elif text == 'проведение закупки':
-        initiate_purchase(message)
+    elif text == 'проведение закупки и создание json':
+        initiate_purchase_and_create_json(message)
     elif text == 'изменить товар':
         msg = bot.send_message(message.chat.id, "Введите новое название товара ✏️:")
         bot.register_next_step_handler(msg, edit_selected_product)
@@ -185,7 +198,7 @@ def edit_selected_product(message):
     bot.send_message(message.chat.id, f"Товар изменён на {new_product_name}.")
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(types.KeyboardButton('Просмотр остатков и прогноз 📊'))
-    markup.add(types.KeyboardButton('Проведение закупки 🛒'))
+    markup.add(types.KeyboardButton('Проведение закупки и создание JSON 🛒'))
     markup.add(types.KeyboardButton('Назад 🔙'))
     bot.send_message(message.chat.id, "Выберите действие 🔽:", reply_markup=markup)
     bot.register_next_step_handler(message, handle_post_search_actions)
@@ -202,6 +215,7 @@ def view_stock_and_forecast(message):
         markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
         markup.add(types.KeyboardButton('Ввести название товара ✏️'))
         markup.add(types.KeyboardButton('Поиск товара 📦'))
+        markup.add(types.KeyboardButton('Назад 🔙'))
         bot.send_message(message.chat.id, "Выберите действие 🔽:", reply_markup=markup)
         bot.register_next_step_handler(message, handle_stock_or_forecast_selection)
 
@@ -260,32 +274,45 @@ def handle_forecast_period(message, product_name):
         bot.send_photo(message.chat.id, image)
         bot.send_message(message.chat.id, f"Прогноз на {period}: {forecast_data}")
         markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-        markup.add(types.KeyboardButton('Проведение закупки 🛍️'))
+        markup.add(types.KeyboardButton('Проведение закупки и создание JSON 🛒'))
         markup.add(types.KeyboardButton('Назад 🔙'))
         bot.send_message(message.chat.id, "Хотите провести закупку 🛍️?", reply_markup=markup)
-        bot.register_next_step_handler(message, handle_post_forecast_actions)
+        bot.register_next_step_handler(message, handle_post_forecast_actions, product_name)
     else:
         bot.send_message(message.chat.id, "Пожалуйста, выберите правильный период: 'Месяц', 'Квартал' или 'Год'.")
         bot.register_next_step_handler(message, handle_forecast_period, product_name)
 
-def handle_post_forecast_actions(message):
+def handle_post_forecast_actions(message, product_name):
     if emoji.replace_emoji(message.text.lower(), replace='').strip() in ['назад', 'начало']:
         send_welcome(message)
     else:
         bot.send_message(message.chat.id, "Процедура закупки начата 🛍️.")
-        send_welcome(message)
+        initiate_purchase_and_create_json(message, product_name)
 
-# Handlers for purchase initiation
+
+# Handlers for purchase initiation and JSON creation
 @bot.message_handler(func=lambda message: emoji.replace_emoji(message.text.lower(), replace='').strip() in \
-    ["проведение закупки", "закупка"])
-def initiate_purchase(message):
-    if message.chat.id in current_search:
-        bot.send_message(message.chat.id, "Процедура закупки начата 🛍️.")
+    ["проведение закупки и создание json", "закупка"])
+def initiate_purchase_and_create_json(message, product_name=None):
+    if not product_name and message.chat.id in current_search:
+        product_name = current_search[message.chat.id]
+    if product_name:
+        # Simulate purchase process
+        bot.send_message(message.chat.id, f"Процедура закупки для {product_name} начата 🛒.")
+        
+        
+        
+        # Send JSON file
+        json_file = BytesIO(json.dumps(json_data, ensure_ascii=False, indent=4).encode('utf-8'))
+        json_file.name = f"{product_name}_contract.json"
+        bot.send_document(message.chat.id, json_file)
+
         send_welcome(message)
     else:
         markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
         markup.add(types.KeyboardButton('Ввести название товара 📦'))
         markup.add(types.KeyboardButton('Поиск товара 📦'))
+        markup.add(types.KeyboardButton('Назад 🔙'))
         bot.send_message(message.chat.id, "Выберите действие 🔽:", reply_markup=markup)
         bot.register_next_step_handler(message, handle_purchase_selection)
 
@@ -298,7 +325,7 @@ def handle_purchase_selection(message):
         bot.register_next_step_handler(msg, process_initiate_purchase)
     elif text in ['поиск товара', 'поиск', 'товар', 'найти', 'найти товар']:
         search_product(message)
-    elif message.text.lower() in ['назад', 'начало']:
+    elif text in ['назад', 'начало']:
         send_welcome(message)
     else:
         handle_unrecognized(message)
@@ -307,8 +334,7 @@ def process_initiate_purchase(message):
     product_name = message.text
     current_search[message.chat.id] = product_name
     bot.send_message(message.chat.id, f"Вы выбрали {product_name}")
-    bot.send_message(message.chat.id, "Процедура закупки начата 🛍️.")
-    send_welcome(message)
+    initiate_purchase_and_create_json(message, product_name)
 
 # Handler for unrecognized commands
 @bot.message_handler(func=lambda message: True)

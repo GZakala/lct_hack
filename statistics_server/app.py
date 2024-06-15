@@ -87,6 +87,44 @@ def get_procurement_contracts_date_data():
 		content_type='application/json',
 	)
 
+@app.route('/prognoze_financial_quarter', methods=['GET'])
+def prognoze_financial_quarter():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'month')
+	result = stats_calculator.prognoze_financial_quarter_data(spgz_name, date_grain)
+	return Response(
+		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
+@app.route('/prognoze_contracts', methods=['GET'])
+def prognoze_contracts():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'month')
+	result = stats_calculator.prognoze_contracts(spgz_name, date_grain)
+	return Response(
+		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
 
 if __name__ == '__main__':
 	app.run(host='0.0.0.0', port=5000, debug=True)
