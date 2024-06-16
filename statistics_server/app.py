@@ -49,6 +49,18 @@ def search_contracts():
 		content_type='application/json',
 	)
 
+@app.route('/search_restrictions', methods=['GET'])
+def search_restrictions():
+	data = json.loads(request.get_data())
+	text = data.get('text', '')
+	k = data.get('k', 5)
+	result = stats_calculator.search_restrictions(text, k)
+	return Response(
+		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
 @app.route('/financial_quarter_data', methods=['GET'])
 def get_financial_quarter_data():
 	data = json.loads(request.get_data())
@@ -106,8 +118,8 @@ def prognoze_financial_quarter():
 		content_type='application/json',
 	)
 
-@app.route('/grafic_dynamics_financial', methods=['GET'])
-def grafic_dynamics_financial():
+@app.route('/grafic_dynamics_financial_quantity', methods=['GET'])
+def grafic_dynamics_financial_quantity():
 	data = json.loads(request.get_data())
 	if 'spgz_name' not in data:
 		return Response(
@@ -118,7 +130,57 @@ def grafic_dynamics_financial():
 
 	spgz_name = data.get('spgz_name', '')
 	date_grain = data.get('date_grain', 'quarter')
-	img_buf = stats_calculator.create_grafic_dynamics_financial(spgz_name, date_grain)
+	img_buf, status = stats_calculator.create_grafic_dynamics_financial_quantity(spgz_name, date_grain)
+	if status:
+		return Response(
+			response=json.dumps({'img': img_buf}, ensure_ascii=False), 
+			status=200,
+			content_type='application/json',
+		)
+	else:
+		return Response(
+			status=400,
+			content_type='application/json',
+		)
+
+@app.route('/grafic_dynamics_financial_price', methods=['GET'])
+def grafic_dynamics_financial_price():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'quarter')
+	img_buf, status = stats_calculator.create_grafic_dynamics_financial_price(spgz_name, date_grain)
+	if status:
+		return Response(
+			response=json.dumps({'img': img_buf}, ensure_ascii=False), 
+			status=200,
+			content_type='application/json',
+		)
+	else:
+		return Response(
+			status=400,
+			content_type='application/json',
+		)
+
+@app.route('/grafic_dynamics_financial_prognoze', methods=['GET'])
+def grafic_dynamics_financial_prognoze():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'quarter')
+	img_buf = stats_calculator.create_grafic_dynamics_financial_prognoze(spgz_name, date_grain)
 	return Response(
 		response=json.dumps({'img': img_buf}, ensure_ascii=False), 
 		status=200,
@@ -140,6 +202,25 @@ def prognoze_contracts():
 	result = stats_calculator.prognoze_contracts(spgz_name, date_grain)
 	return Response(
 		response=json.dumps(result, ensure_ascii=False), 
+		status=200,
+		content_type='application/json',
+	)
+
+@app.route('/grafic_dynamics_contracts_prognoze', methods=['GET'])
+def grafic_dynamics_contracts_prognoze():
+	data = json.loads(request.get_data())
+	if 'spgz_name' not in data:
+		return Response(
+			response=json.dumps({'error': 'Need field spgz_name'} , ensure_ascii=False), 
+			status=400,
+			content_type='application/json',
+		)
+
+	spgz_name = data.get('spgz_name', '')
+	date_grain = data.get('date_grain', 'month')
+	img_buf = stats_calculator.create_grafic_dynamics_contracts_prognoze(spgz_name, date_grain)
+	return Response(
+		response=json.dumps({'img': img_buf}, ensure_ascii=False), 
 		status=200,
 		content_type='application/json',
 	)

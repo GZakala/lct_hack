@@ -1,0 +1,129 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "StatisticsServer API",
+    "description": "API для управления пользователями и проверки их авторизации.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/user": {
+      "put": {
+        "summary": "Добавление пользователя",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "user"
+                  },
+                  "md5_parol": {
+                    "type": "string",
+                    "example": "5d41402abc4b2a76b9719d911017c592"
+                  },
+                  "department": {
+                    "type": "string",
+                    "example": "lct"
+                  },
+                  "permission_admin": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "permission_forecast": {
+                    "type": "integer",
+                    "example": 0
+                  },
+                  "permission_json": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Пользователь успешно добавлен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Получить md5 пароля пользователя и сравнить с паролем",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "user"
+            }
+          },
+          {
+            "name": "parol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "123456"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Авторизован ли пользователь",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authorized": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "permissions": {
+                      "type": "object",
+                      "properties": {
+                        "permission_admin": {
+                          "type": "string",
+                          "example": "1"
+                        },
+                        "permission_forecast": {
+                          "type": "string",
+                          "example": "0"
+                        },
+                        "permission_json": {
+                          "type": "string",
+                          "example": "1"
+                        },
+                        "department": {
+                          "type": "string",
+                          "example": "lct"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "authorized"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

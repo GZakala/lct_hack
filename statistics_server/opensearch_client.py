@@ -100,17 +100,17 @@ class OpensearchClient:
 		self.client.indices.create(index='storage_costs', body={
 			"settings": {
 				"number_of_shards": 1,
-				"number_of_replicas": 1
+				"number_of_replicas": 1,
 			},
 			"mappings": {
 				"dynamic": False,
 				"properties": {
-					"category": { "type": "text" },
+					"category": { "type": "text", },
 					"avg_turnovers_credit_quantity": { "type": "float" },
 					"avg_turnovers_credit_price": { "type": "float" },
 					"last_saldo_end_debit_quantity": { "type": "float" },
 					"last_saldo_end_debit_price": { "type": "float" },
-				}
+				},
 			}
 		})
 
@@ -169,14 +169,26 @@ class OpensearchClient:
 		self.client.indices.create(index='contracts', body={
 			"settings": {
 				"number_of_shards": 1,
-				"number_of_replicas": 1
+				"number_of_replicas": 1,
+				"analysis": {
+					"analyzer": {
+						"stemmed_analyzer": {
+							"tokenizer": "standard",
+							"filter": ["lowercase", "stemmer"]
+						}
+					},
+					"filter": {
+						"stemmer": {
+							"type": "stemmer",
+							"language": "russian" 
+						}
+					}
+				}
 			},
 			"mappings": {
 				"dynamic": False,
 				"properties": {
-					"ste_name": { "type": "text" },
-					"ste_category": { "type": "text" },
-					"spgz_name": { "type": "text" },
+					"spgz_name": { "type": "text", "analyzer": "stemmed_analyzer" },
 					"avg_contracts_price": { "type": "float" },
 					"avg_contracts_delta": { "type": "float" },
 					"avg_price_per_day": { "type": "float" },
@@ -186,36 +198,48 @@ class OpensearchClient:
 			}
 		})
 
+		# sql = """
+		# with contracts as (
+		# select 	
+		# 	spgz_name,
+		# 	unnest(contract_ids) as contract_id,
+		# 	round(avg(contracts_price), 2) as avg_contracts_price,
+		# 	ceil(avg(next_contracts_delta)) as avg_contracts_delta,
+		# 	round(avg(contracts_price) / avg(next_contracts_delta), 2) as avg_price_per_day,
+		# 	min(contract_date) as first_contract_date,
+		# 	max(contract_date) as last_contract_date
+		# from procurement_contracts_date_data
+		# group by spgz_name, unnest(contract_ids)
+		# ),
+		# ste as (
+		# select contract_id, ste_name, category
+		# 	from ste_kpgz
+		# )
+		# select 
+		# 	coalesce(tt.ste_name, '') as ste_name, 
+		# 	coalesce(tt.category, '') as ste_category, 
+		# 	t.spgz_name,
+		# 	array_agg(t.contract_id),
+		# 	avg(t.avg_contracts_price) as avg_contracts_price,
+		# 	avg(t.avg_contracts_delta) as avg_contracts_delta,
+		# 	avg(t.avg_price_per_day) as avg_price_per_day,
+		# 	min(t.first_contract_date) as first_contract_date,
+		# 	min(t.last_contract_date) as last_contract_date
+		# from contracts t
+		# left join ste tt on t.contract_id = tt.contract_id
+		# group by ste_name, ste_category, spgz_name;
+		# """
+
 		sql = """
-		with contracts as (
 		select 	
 			spgz_name,
-			unnest(contract_ids) as contract_id,
 			round(avg(contracts_price), 2) as avg_contracts_price,
 			ceil(avg(next_contracts_delta)) as avg_contracts_delta,
 			round(avg(contracts_price) / avg(next_contracts_delta), 2) as avg_price_per_day,
 			min(contract_date) as first_contract_date,
 			max(contract_date) as last_contract_date
 		from procurement_contracts_date_data
-		group by spgz_name, unnest(contract_ids)
-		),
-		ste as (
-		select contract_id, ste_name, category
-			from ste_kpgz
-		)
-		select 
-			coalesce(tt.ste_name, '') as ste_name, 
-			coalesce(tt.category, '') as ste_category, 
-			t.spgz_name,
-			array_agg(t.contract_id),
-			avg(t.avg_contracts_price) as avg_contracts_price,
-			avg(t.avg_contracts_delta) as avg_contracts_delta,
-			avg(t.avg_price_per_day) as avg_price_per_day,
-			min(t.first_contract_date) as first_contract_date,
-			min(t.last_contract_date) as last_contract_date
-		from contracts t
-		left join ste tt on t.contract_id = tt.contract_id
-		group by ste_name, ste_category, spgz_name;
+		group by spgz_name
 		"""
 
 		rows = self.sql_client.select(sql)
@@ -226,8 +250,6 @@ class OpensearchClient:
 			for row in batch:
 				bulk_body.append(action)
 				bulk_body.append({
-					"ste_name": row.get('ste_name', ''),
-					"ste_category": row.get('ste_category', ''),
 					"spgz_name": row.get('spgz_name', ''),
 					"avg_contracts_price": row.get('avg_contracts_price', 0),
 					"avg_contracts_delta": row.get('avg_contracts_delta', 0),
@@ -247,9 +269,80 @@ class OpensearchClient:
 			body={
 				'size': k,
 				'query': {
-					'multi_match': {
-						'query': text,
-						'fields': ['spgz_name^3', 'ste_name', '', 'ste_category']
+					'match': {
+						'spgz_name': text,
+					}
+				}
+			},
+		)
+		return [hit['_source'] for hit in response['hits']['hits']]
+
+	def create_restrictions_index(self, drop: bool = False):
+		if self.client.indices.exists(index='restrictions'):
+			if not drop:
+				return
+			self.client.indices.delete(index='restrictions')
+
+		self.client.indices.create(index='restrictions', body={
+			"settings": {
+				"number_of_shards": 1,
+				"number_of_replicas": 1,
+				"analysis": {
+					"analyzer": {
+						"stemmed_analyzer": {
+							"tokenizer": "standard",
+							"filter": ["lowercase", "stemmer"]
+						}
+					},
+					"filter": {
+						"stemmer": {
+							"type": "stemmer",
+							"language": "russian" 
+						}
+					}
+				}
+			},
+			"mappings": {
+				"dynamic": False,
+				"properties": {
+					"entity_id": { "type": "keyword", },
+					"okpd2_code": { "type": "keyword" },
+					"name": { "type": "text", "analyzer": "stemmed_analyzer" },
+					"doughters": { "type": "keyword" },
+					"restrictions": { "type": "text" },
+				},
+			}
+		})
+
+		sql = 'select * from restrictions'
+		rows = self.sql_client.select(sql)
+		batch_size = 10000
+		action = {'create': {'_index': 'restrictions'}}
+		for batch in batched(rows, batch_size):
+			bulk_body = []
+			for row in batch:
+				bulk_body.append(action)
+				bulk_body.append({
+					"entity_id": row.get('entity_id', ''), 
+					"okpd2_code": row.get('okpd2_code', ''), 
+					"name": row.get('name', ''), 
+					"doughters": row.get('doughters', ''), 
+					"restrictions": row.get('restrictions', ''), 
+				})
+
+			self.client.bulk(
+				index='restrictions', 
+				body=ndjson.dumps(bulk_body, ensure_ascii=False)
+			)
+
+	def search_restrictions(self, text: str, k: int = 1):
+		response = self.client.search(
+			index='restrictions',
+			body={
+				'size': k,
+				'query': {
+					'match': {
+						'name': text,
 					}
 				}
 			},

@@ -19,6 +19,3 @@ def restriction_client(entity_id: str
     if len(restriction_message) > 0:
         result_message = '\n'.join([row['restrictions'] for row in restriction_message])
         return result_message
-
-print(restriction_client(entity_id))
-
