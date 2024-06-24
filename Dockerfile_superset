@@ -1,0 +1,10 @@
+FROM  apache/superset:24b8ffd-ci
+
+USER root
+
+RUN pip install --no-cache Authlib
+
+COPY --chown=superset config/superset_config.py /app/
+ENV SUPERSET_CONFIG_PATH /app/superset_config.py
+
+USER superset

@@ -1,11 +1,12 @@
 import io
 import os
 import base64
+import json
 
 from pathlib import Path
 from typing import Dict, Sequence
 from dateutil.relativedelta import relativedelta
-from datetime import datetime
+import datetime as dt
 
 import numpy as np
 import pandas as pd
@@ -20,7 +21,7 @@ from opensearch_client import OpensearchClient
 
 
 CUR_DIR = Path(__file__).parent
-NOW = datetime(year=2023, month=1, day=1)
+NOW = dt.datetime(year=2023, month=1, day=1)
 
 class StatsCalculator:
 	DAY = 'day'
@@ -71,6 +72,10 @@ class StatsCalculator:
 		)
 		return self.sql_client.select(sql)
 
+	def select_last_contract(self, spgz_name: str):
+		sql = self.templates['select_last_contract'].render(spgz_name=spgz_name)
+		return self.sql_client.select(sql)
+
 	def prognoze_financial_quarter_data(self, spgz_name: str, date_grain: str):
 		if date_grain not in ('month', 'quarter', 'year'):
 			return {
@@ -113,7 +118,7 @@ class StatsCalculator:
 			regular_type = 'Нерегулярные товары'
 
 		if date_grain == 'month':
-			end_quarter = str(datetime(year=2023, month=2, day=1))
+			end_quarter = str(dt.datetime(year=2023, month=2, day=1))
 			prognoze_turnovers_debit_quantity /= 3
 			prognoze_turnovers_debit_price /= 3
 			avg_turnovers_credit_quantity /= 3
@@ -121,9 +126,9 @@ class StatsCalculator:
 			avg_saldo_end_credit_quantity /= 3
 			avg_saldo_end_credit_price /= 3
 		if date_grain == 'quarter':
-			end_quarter = str(datetime(year=2023, month=3, day=31))
+			end_quarter = str(dt.datetime(year=2023, month=3, day=31))
 		elif date_grain == 'year':
-			end_quarter = str(datetime(year=2023, month=9, day=30))
+			end_quarter = str(dt.datetime(year=2023, month=9, day=30))
 			prognoze_turnovers_debit_quantity *= 4
 			prognoze_turnovers_debit_price *= 4
 			avg_turnovers_credit_quantity *= 4
@@ -139,7 +144,7 @@ class StatsCalculator:
 			avg_saldo_end_credit_quantity = max(avg_saldo_end_credit_quantity, 1)
 
 		return {
-			'start_quarter': str(datetime(year=2023, month=1, day=1)),
+			'start_quarter': str(dt.datetime(year=2023, month=1, day=1)),
 			'end_quarter': str(end_quarter),
 			'spgz_name': spgz_name,
 			'saldo_start_debit_quantity': abs(last_saldo_end_debit_quantity),
@@ -255,32 +260,32 @@ class StatsCalculator:
 
 		return 'Закупка регулярна'
 
-	def add_user(
-		self, 
-		username: str,
-		department: str,
-		permission_admin: int,
-		permission_forecast: int,
-		permission_json: int,
-		password: str,
-	):
-		sql = self.templates['add_user'].render(
-			username=username,
-			department=department,
-			permission_admin=permission_admin,
-			permission_forecast=permission_forecast,
-			permission_json=permission_json,
-			password=password,
-		)
-		return self.sql_client.execute(sql)
+	# def add_user(
+	# 	self, 
+	# 	username: str,
+	# 	department: str,
+	# 	permission_admin: int,
+	# 	permission_forecast: int,
+	# 	permission_json: int,
+	# 	password: str,
+	# ):
+	# 	sql = self.templates['add_user'].render(
+	# 		username=username,
+	# 		department=department,
+	# 		permission_admin=permission_admin,
+	# 		permission_forecast=permission_forecast,
+	# 		permission_json=permission_json,
+	# 		password=password,
+	# 	)
+	# 	return self.sql_client.execute(sql)
 
-	def get_user(self, username: str):
-		sql = self.templates['get_user'].render(username=username)
-		return self.sql_client.select(sql)
+	# def get_user(self, username: str):
+	# 	sql = self.templates['get_user'].render(username=username)
+	# 	return self.sql_client.select(sql)
 
-	def del_user(self, username: str):
-		sql = self.templates['del_user'].render(username=username)
-		return self.sql_client.execute(sql)
+	# def del_user(self, username: str):
+	# 	sql = self.templates['del_user'].render(username=username)
+	# 	return self.sql_client.execute(sql)
 
 	def create_grafic_dynamics_financial_quantity(self, spgz_name: str, date_grain: str):
 		sql = self.templates['select_financial_quarter_data'].render(
@@ -603,3 +608,69 @@ class StatsCalculator:
 		buf.seek(0)
 		return base64.b64encode(buf.getvalue()).decode()
 	
+	def create_contract_json(self, spgz_name: str):
+		last_contract_data = self.select_last_contract(spgz_name)
+		rows = []
+		for data in last_contract_data:
+			prognoze_contract = self.prognoze_contracts(spgz_name)[0]
+			for k, v in prognoze_contract.items():
+				if k in ['contract_date']:
+					date_time_obj = dt.datetime.strptime(v, '%Y-%m-%d %H:%M:%S')
+					prognoze_contract[k] = date_time_obj.strftime('%Y-%m-%d')
+				elif k in ['contract_price']:
+					prognoze_contract[k] = f'{round(v, 2)} руб.'
+
+			timedelta_obj = dt.timedelta(days=prognoze_contract['next_contract_delta'])
+			prognoze_contract['end_date'] = (date_time_obj + timedelta_obj).strftime('%Y-%m-%d')
+			prognoze_contract['year'] = (date_time_obj).strftime('%Y')
+			restrictions = self.opensearch_client.search_restrictions(data['spgz_name'])
+			if restrictions:
+				entity_id = restrictions[0]['entity_id']
+			else:
+				entity_id = ''
+
+			rows.append({
+				"DeliverySchedule": {
+					"dates": {
+						"end_date": prognoze_contract['end_date'],
+						"start_date": prognoze_contract['contract_date']
+					},
+					"deliveryAmount": "",
+					"deliveryConditions":  "",
+					"year": prognoze_contract['year']
+				},
+				"address": {
+					"gar_id": '1',
+					"text": '1'
+				},
+				"entityId": entity_id,
+				"id": "",
+				"nmc": data['contract_price'],
+				"okei_code": "",
+				"purchaseAmount": "",
+				"spgzCharacteristics": [
+					{
+						"characteristicName": data['spgz_name'],
+						"characteristicSpgzEnums": [
+							{  
+								"spgz_code": data['spgz_code'],
+								"kpgz_name": data['kpgz_name'],
+								"kpgz_code": data['kpgz_code']
+							}
+						],
+						"conditionTypeId": "" ,
+						"kpgzCharacteristicId":""  ,
+						"okei_id": "" ,
+						"selectType": data['supplier_selection_method'] ,
+						"typeId": ""
+					},
+				]
+			})
+
+		return {
+			"id": '1',
+			"lotEntityId": entity_id,
+			"CustomerId": '1',
+			"rows": rows
+		}
+		

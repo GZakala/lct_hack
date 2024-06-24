@@ -1,5 +1,5 @@
 run_build:
-	docker compose up -d --build
+	docker compose up -d --build --remove-orphans
 
 run:
 	docker compose up -d

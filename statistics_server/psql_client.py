@@ -12,8 +12,8 @@ LOGGER = get_logger(str(Path(__file__).absolute()))
 class PSQLClient:
 	def __init__(
 		self, 
-		host: str, 
-		port: int, 
+		host: str,
+		port: int,
 		user: str,
 		password: str,
 		dbname: str,

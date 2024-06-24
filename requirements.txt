@@ -78,6 +78,7 @@ pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
 Pygments==2.18.0
+PyJWT==2.8.0
 pymorphy3==2.0.1
 pymorphy3-dicts-ru==2.4.417150.4580142
 pyparsing==3.1.2
